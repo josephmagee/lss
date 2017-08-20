@@ -2,20 +2,15 @@
 
 	require('apikey.php');
 
-	// @todo Make summoner name and server dynamic based off form input, hide global api key from version control.
-	$summoner_name = 'Juggernawt';
-	$server = 'NA';
+	$GLOBALS['version'] = 'v3';
 
-	$summoner_encoded = rawurlencode($summoner_name);
-	$summoner_name = strtolower($summoner_encoded);
+	// @todo Make summoner name and server dynamic based off form input.
+	$server = 'na1';
+	$summoner_name = 'juggernawt';
+	$summoner_name = rawurlencode(strtolower($summoner_name));
 
-/* 
- * Add the necessary Curl code along with the url of the API, execute it, and return the result.
- * Gets Summoner Information and returns the Name, ID, ProfileIconID, and Level.
- */
-	function base_summoner_info($summoner_name, $server) {
-		
-		$curl = curl_init('https://' . $server . '.api.pvp.net/api/lol/' . $server . '/v1.4/summoner/by-name/' . $summoner_name . '?api_key=' . $GLOBALS['API_KEY']);
+	function get_base_summoner_info($summoner_name, $server) {
+		$curl = curl_init('https://' . $server . '.api.riotgames.com/lol/summoner/' . $GLOBALS['version'] . '/summoners/by-name/' . $summoner_name . '?api_key=' . $GLOBALS['API_KEY']);
 		curl_setopt($curl, CURLOPT_RETURNTRANSFER, 1);
 		$result = curl_exec($curl);
 		curl_close($curl);
@@ -23,30 +18,28 @@
 		return $json;
 	}
 
-/*
- * Gets a summary of stats such as total minions killed, turrets taken, W/L ratios 
- * for various game modes.
- */
-	function summary_stats($summoner_name, $server, $summoner_id) {
-		$curl = curl_init('https://' . $server . '.api.pvp.net/api/lol/' . $server . '/v1.3/stats/by-summoner/' . $summoner_id . 'summary?api_key=' . $GLOBALS['API_KEY']);
+	function get_most_played($summoner_id, $server) {
+		$curl = curl_init('https://' . $server . '.api.riotgames.com/lol/match/' . $GLOBALS['version'] . '/matchlists/by-account/' . $summoner_id . '/recent?api_key=' . $GLOBALS['API_KEY']);
 		curl_setopt($curl, CURLOPT_RETURNTRANSFER, 1);
 		$result = curl_exec($curl);
 		curl_close($curl);
-		echo $result;
-	
+		$json = json_decode($result, true);
+
+		$most_played_array = array();
+		for ($i=0; $i < 19; $i++) {
+			array_push($most_played_array, $json['matches'][$i]['lane']);
+		}
+
+		$count = array_count_values($most_played_array);
+		arsort($count);
+		$keys = array_keys($count);
+		return $keys[0];
 }
 
-	$summoner_id = base_summoner_info($summoner_name, $server);
-	echo "Summoner Name: " . $response_name = 
-	$summoner_id->$summoner_name->name . "<br>";
-	
-	echo "Summoner ID: " . $response_id = 
-	$summoner_id->$summoner_name->id . "<br>";
-
-	echo "Icon: " . $response_icon_id = 
-	$summoner_id->$summoner_name->profileIconId . "<br>";
-
-	echo "Level: " . $response_level = 
-	$summoner_id->$summoner_name->summonerLevel . "<br>";
-
-?>
+	$summoner_info = get_base_summoner_info($summoner_name, $server);
+	$most_played = get_most_played($summoner_info->accountId, $server);
+	echo "Summoner Name: " . $summoner_info->name . "<br>";
+	echo "Summoner Level: " . $summoner_info->summonerLevel . "<br>";
+	echo "Summoner ID: " . $summoner_info->accountId . "<br>";
+	echo "Summoner Profile Icon ID: " . $summoner_info->profileIconId . "<br>";
+	echo "most played role is: " . $most_played;
